@@ -1,0 +1,38 @@
+{
+  "dependencies": {
+    "chokidar": "^3.5.1",
+    "discord.js": "^12.5.3",
+    "ffmpeg": "^0.0.4",
+    "ffmpeg-static": "^4.3.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "node-gyp": "^8.0.0",
+    "opusscript": "^0.0.8"
+  },
+  "name": "soundbot",
+  "version": "1.0.0",
+  "description": "Bot to record solo and group audio from a VC as clips and play them",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pyraxo/soundbot.git"
+  },
+  "keywords": [
+    "discord.js",
+    "opusscript",
+    "opus",
+    "discord",
+    "audio",
+    "voice",
+    "bot"
+  ],
+  "author": "pyraxo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pyraxo/soundbot/issues"
+  },
+  "homepage": "https://github.com/pyraxo/soundbot#readme"
+}
