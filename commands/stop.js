@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs/promises')
 const ffmpeg = require('fluent-ffmpeg')
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 
 module.exports = {
     name: 'stop',
@@ -12,7 +13,7 @@ module.exports = {
         if (!recording.isGroup) {
             recording.botConn.disconnect()
 
-            ffmpeg()
+            ffmpeg().setFfmpegPath(ffmpegPath)
             .input(recording.temppath)
             .inputFormat('s32le')
             .outputOptions('-af asetrate=44100*1.1,aresample=44100')
@@ -34,7 +35,7 @@ module.exports = {
         } else {
             recording.botConn.disconnect()
 
-            const command = ffmpeg()
+            const command = ffmpeg().setFfmpegPath(ffmpegPath)
             .outputOptions('-ac 2')
             .outputOptions('-ab 96k')
             .outputOptions(`-filter_complex amix=inputs=${recording.recordings.length}:duration=first:dropout_transition=0`)
