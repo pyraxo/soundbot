@@ -10,6 +10,8 @@ module.exports = {
         if (!bot.ongoingRecordings[msg.author.id] === 'undefined') return
         const recording = bot.ongoingRecordings[msg.author.id]
 
+        if (!recording) return
+
         if (!recording.isGroup) {
             recording.botConn.disconnect()
 
