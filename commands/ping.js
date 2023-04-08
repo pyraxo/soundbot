@@ -1,9 +1,14 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 module.exports = {
-    name: 'ping',
-    description: 'Ping!',
-    async execute(msg) {
-        const time = Date.now()
-        const reply = await msg.channel.send('pong!')
-        return reply.edit(`pong took \`${Date.now() - time}\` ms`)
-    }
-}
+  data: new SlashCommandBuilder().setName("ping").setDescription("Ping!"),
+  async execute(interaction) {
+    const sent = await interaction.reply({
+      content: "Pinging...",
+      fetchReply: true,
+    });
+    return interaction.editReply(
+      `Ping took \`${sent.createdTimestamp - interaction.createdTimestamp}\` ms`
+    );
+  },
+};

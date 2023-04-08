@@ -1,13 +1,21 @@
 {
   "dependencies": {
+    "@discordjs/opus": "^0.9.0",
+    "@discordjs/voice": "^0.16.0",
     "@ffmpeg-installer/ffmpeg": "^1.0.20",
+    "bufferutil": "^4.0.7",
     "chokidar": "^3.5.1",
-    "discord.js": "^12.5.3",
+    "discord.js": "^14.9.0",
+    "erlpack": "^0.1.4",
     "ffmpeg": "^0.0.4",
     "ffmpeg-static": "^4.3.0",
     "fluent-ffmpeg": "^2.1.2",
+    "libsodium-wrappers": "^0.7.11",
     "node-gyp": "^8.0.0",
-    "opusscript": "^0.0.8"
+    "opusscript": "^0.0.8",
+    "prism-media": "^1.3.5",
+    "sodium": "^3.0.2",
+    "zlib-sync": "^0.1.8"
   },
   "name": "soundbot",
   "version": "1.0.0",
