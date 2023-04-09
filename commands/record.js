@@ -1,6 +1,5 @@
 const { createWriteStream } = require("node:fs");
 const { rename, unlink } = require("node:fs/promises");
-const { pipeline } = require("node:stream");
 const path = require("node:path");
 const {
   joinVoiceChannel,
@@ -21,33 +20,32 @@ const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("@ffmpeg-installer/ffmpeg").path;
 
 const startRecording = (receiver, userId) => {
-  const opusStream = receiver.subscribe(userId, {
-    end: {
-      behavior: EndBehaviorType.AfterSilence,
-      duration: 1000,
-    },
-  });
-
-  const oggStream = new opus.OggLogicalBitstream({
-    opusHead: new opus.OpusHead({
-      channelCount: 2,
-      sampleRate: 48000,
-    }),
-    pageSizeControl: {
-      maxPackets: 10,
-    },
-    crc: false,
-  });
-
   const filename = `${userId}-${Date.now()}`;
-  const filepath = path.join(__dirname, "../clips", filename) + ".ogg";
-  const out = createWriteStream(filepath);
+  const filepath = path.join(__dirname, "../clips", filename) + ".pcm";
+
   console.log(`Started recording ${filename}`);
-  pipeline(opusStream, oggStream, out, (err) =>
-    err
-      ? console.warn(`Could not record ${filename}:`, err)
-      : console.log(`Recorded ${filename}`)
-  );
+
+  const pcmStream = receiver
+    .subscribe(userId, {
+      end: {
+        behavior: EndBehaviorType.Manual,
+      },
+    })
+    .pipe(
+      new opus.Decoder({
+        rate: 48000,
+        channels: 2,
+        frameSize: 120,
+      })
+    )
+    .pipe(createWriteStream(filepath));
+
+  pcmStream
+    .on("error", (err) => console.warn(`Could not record ${filename}:`, err))
+    .on("finish", () => {
+      console.log(`Recorded ${filename}`);
+      pcmStream.destroy();
+    });
 
   return filepath;
 };
@@ -57,40 +55,59 @@ const initRecord = (receiver, ids) => {
   return paths;
 };
 
-const endRecord = async (userId, paths, newPath) => {
+const endRecord = async (paths, newPath, isGroup = false) => {
   if (!paths.length) {
     throw new Error("No file paths found");
   }
-
-  const command = ffmpeg()
-    .setFfmpegPath(ffmpegPath)
-    .outputOptions("-ac 2")
-    .outputOptions("-ab 96k")
-    .outputOptions(
-      `-filter_complex amix=inputs=${paths.length}:duration=first:dropout_transition=0`
-    )
-    .format("mp3")
-    .on("error", (err) => {
-      console.log(`Error encountered while trying to merge mp3: ${err}`);
-    })
-    .once("end", async () => {
-      console.log(`Converted ${filename}.mp3`);
-      try {
-        await rename(filepath, newPath);
-        for (const temppath of paths) {
-          await unlink(temppath);
-          console.log(`Deleted group recording from user @ ${temppath}`);
+  if (isGroup) {
+    const command = ffmpeg()
+      .setFfmpegPath(ffmpegPath)
+      .outputOptions("-ac 2")
+      .outputOptions("-ab 96k")
+      .outputOptions(
+        `-filter_complex amix=inputs=${paths.length}:duration=longest:dropout_transition=2`
+      )
+      .format("mp3")
+      .on("error", (err) => {
+        console.log(`Error encountered while trying to merge mp3: ${err}`);
+      })
+      .once("end", async () => {
+        console.log(`Converted ${newPath}`);
+        try {
+          for (const temppath of paths) {
+            await unlink(temppath);
+            console.log(`Deleted group recording from user @ ${temppath}`);
+          }
+        } catch (err) {
+          console.warn("Error merging recordings:", err);
         }
-      } catch (err) {
-        console.warn(err);
-      }
-    });
+      });
 
-  for (const temppath of paths) {
-    command.input(temppath).inputFormat("opus");
+    for (const temppath of paths) {
+      command.input(temppath).inputFormat("s32le");
+    }
+
+    return command.save(newPath);
+  } else {
+    return ffmpeg()
+      .setFfmpegPath(ffmpegPath)
+      .input(paths[0])
+      .inputFormat("s32le")
+      .outputOptions("-af asetrate=44100*1.1,aresample=44100")
+      .outputOptions("-ac 2")
+      .outputOptions("-ab 96k")
+      .format("mp3")
+      .on("error", (err) => {
+        console.warn(`Error encountered while trying to convert to mp3:`, err);
+      })
+      .once("end", async () => {
+        console.log(`Converted ${paths[0]}`);
+        await unlink(paths[0]);
+        await rename(paths[0].replace("pcm", "mp3"), newPath);
+        console.log(`Deleted old ${paths[0]}`);
+      })
+      .save(paths[0].replace("pcm", "mp3"));
   }
-
-  return command.save(newPath);
 };
 
 module.exports = {
@@ -117,6 +134,15 @@ module.exports = {
       });
     }
 
+    const clipName = interaction.options.getString("clip");
+
+    if (interaction.client.loadedFiles[clipName]) {
+      return interaction.reply({
+        content: "There is already a recording with that name!",
+        ephemeral: true,
+      });
+    }
+
     const member = interaction.member;
     if (!(member instanceof GuildMember && member.voice.channel)) {
       return interaction.reply({
@@ -126,7 +152,6 @@ module.exports = {
     }
 
     const isGroup = interaction.options.getBoolean("group");
-    const clipName = interaction.options.getString("clip");
 
     await interaction.deferReply();
 
@@ -195,12 +220,6 @@ module.exports = {
 
     collector.on("collect", async (i) => {
       if (i.customId === `record:${member.id}`) {
-        await i.update({
-          content:
-            "Recording has started! Press the **Stop** button to end it!",
-          components: [updatedRow],
-          ephemeral: true,
-        });
         collector.resetTimer();
         interaction.client.ongoingRecordings[member.id] = {
           rcv: {},
@@ -209,15 +228,16 @@ module.exports = {
         };
         const paths = initRecord(
           receiver,
-          isGroup ? member.voice.channel.members : [member.id]
+          isGroup ? member.voice.channel.members.map((m) => m.id) : [member.id]
         );
         interaction.client.ongoingRecordings[member.id].paths = paths;
-      } else if (i.customId === `stop:${member.id}`) {
         await i.update({
-          content: "Recording has ended!",
-          components: [],
+          content:
+            "Recording has started! Press the **Stop** button to end it!",
+          components: [updatedRow],
           ephemeral: true,
         });
+      } else if (i.customId === `stop:${member.id}`) {
         for (const id in interaction.client.ongoingRecordings[member.id].rcv) {
           interaction.client.ongoingRecordings[member.id].rcv[id].destroy();
           delete interaction.client.ongoingRecordings[member.id].rcv[id];
@@ -226,11 +246,11 @@ module.exports = {
           interaction.client.ongoingRecordings[member.id];
         const newPath = path.join(__dirname, "../clips", clipName) + ".mp3";
         try {
-          await endRecord(member.id, paths, newPath);
+          await endRecord(paths, newPath, isGroup);
         } catch (err) {
           console.warn(err);
           return i.update({
-            content: "Recording failed",
+            content: "😢 Recording failed. Try again later?",
             components: [],
             ephemeral: true,
           });
@@ -238,6 +258,11 @@ module.exports = {
         // Save file with clipName
         collector.stop("Recording ended");
         delete interaction.client.ongoingRecordings[member.id];
+        await i.update({
+          content: `👍 Recording completed! Your new clip is \`${clipName}\``,
+          components: [],
+          ephemeral: true,
+        });
       }
     });
 

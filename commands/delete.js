@@ -1,4 +1,4 @@
-const fs = require("node:fs/promises");
+const { unlink } = require("node:fs/promises");
 const { SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
@@ -14,15 +14,15 @@ module.exports = {
     ),
   async execute(interaction) {
     const clipName = interaction.options.getString("clip");
-    if (typeof interaction.client.loadedFiles[clipName] === "undefined") {
+    if (!interaction.client.loadedFiles[clipName]) {
       return interaction.reply({
         content: `The clip ${clipName} doesn't exist.`,
         ephemeral: true,
       });
     }
 
-    await fs.unlink(interaction.client.loadedFiles[clipName]);
-    console.log(`${target.username} deleted clip ${clipName}`);
+    await unlink(interaction.client.loadedFiles[clipName]);
+    console.log(`${interaction.member.displayName} deleted clip ${clipName}`);
     delete interaction.client.loadedFiles[clipName];
     return interaction.reply(`Deleted clip \`${clipName}\`.`);
   },
@@ -32,9 +32,7 @@ module.exports = {
       (choice) => choice.startsWith(focusedValue)
     );
     await interaction.respond(
-      choices
-        .map((choice) => ({ name: choice, value: `${choice}.mp3` }))
-        .slice(0, 25)
+      choices.map((choice) => ({ name: choice, value: choice })).slice(0, 25)
     );
   },
 };

@@ -8,6 +8,7 @@ const {
 } = require("discord.js");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { once } = require("node:events");
 const chokidar = require("chokidar");
 
 const { token, clientId, guildId } = require("./env.json");
@@ -19,28 +20,44 @@ client.commands = new Collection();
 client.ongoingRecordings = {};
 client.loadedFiles = {};
 
-const watcherOptions = { ignored: /(^|[\/\\])\../, persistent: true };
+const watcherOptions = {
+  ignored: /(^|[\/\\])\../,
+  persistent: true,
+  usePolling: true,
+  interval: 1000,
+};
 
 const resolveDir = (folderName) => path.join(__dirname, folderName);
 
 const clipWatcher = chokidar.watch(resolveDir("clips"), watcherOptions);
-clipWatcher.on("add", (filepath) => {
-  if ([".mp3", ".ogg"].includes(path.extname(filepath))) {
-    client.loadedFiles[path.basename(filepath, path.extname(filepath))] =
-      filepath;
+clipWatcher.on("all", (event, filepath) => {
+  if (![".mp3", ".ogg"].includes(path.extname(filepath))) return;
+  const filename = path.basename(filepath, path.extname(filepath));
+
+  if (event === "add" || event === "change") {
+    client.loadedFiles[filename] = filepath;
+  } else if (event === "unlink") {
+    console.log(`Clip watcher detects deleted clip: ${filepath}`);
+    if (client.loadedFiles[filename]) {
+      delete client.loadedFiles[filename];
+    }
   }
 });
 
 const cmdWatcher = chokidar.watch(resolveDir("commands"), watcherOptions);
-cmdWatcher.on("add", (filepath) => {
-  if (path.extname(filepath) === ".js") {
-    const command = require(filepath);
-    client.commands.set(command.data.name, command);
+cmdWatcher.on("all", (event, filepath) => {
+  if (path.extname(filepath) !== ".js") return;
+  if (event !== "change" && event !== "add") return;
+  if (event === "change") {
+    console.log(`Command watcher detects edited command: ${filepath}`);
+    delete require.cache[require.resolve(filepath)];
   }
+  const command = require(filepath);
+  client.commands.set(command.data.name, command);
 });
 
 client.once(Events.ClientReady, async () => {
-  console.log("Client is ready");
+  console.log("Client is ready!");
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -96,19 +113,6 @@ process.on("unhandledRejection", (error) => {
   console.error("Unhandled promise rejection:", error);
 });
 
-const loadFiles = async () => {
-  const files = await fs.readdir(path.join(__dirname, "clips"));
-  const dict = {};
-  for (const filepath of files) {
-    if ([".mp3", ".ogg"].includes(path.extname(filepath))) {
-      const clipPath = path.join(__dirname, "clips", filepath);
-      dict[path.basename(filepath, path.extname(filepath))] = clipPath;
-    }
-  }
-  client.loadedFiles = dict;
-  console.log(`Loaded ${Object.keys(client.loadedFiles).length} clips.`);
-};
-
 const registerCommands = async () => {
   try {
     const commands = [];
@@ -142,7 +146,9 @@ const registerCommands = async () => {
 };
 
 (async () => {
-  await loadFiles();
+  await once(clipWatcher, "ready");
+  await once(cmdWatcher, "ready");
   // await registerCommands();
+  console.log(`Loaded ${Object.keys(client.loadedFiles).length} clips.`);
   await client.login(token);
 })();
