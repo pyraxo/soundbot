@@ -228,7 +228,11 @@ module.exports = {
         };
         const paths = initRecord(
           receiver,
-          isGroup ? member.voice.channel.members.map((m) => m.id) : [member.id]
+          isGroup
+            ? member.voice.channel.members
+                .filter((m) => m.user && !m.user.bot)
+                .map((m) => m.id)
+            : [member.id]
         );
         interaction.client.ongoingRecordings[member.id].paths = paths;
         await i.update({
