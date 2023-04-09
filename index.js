@@ -25,8 +25,9 @@ const resolveDir = (folderName) => path.join(__dirname, folderName);
 
 const clipWatcher = chokidar.watch(resolveDir("clips"), watcherOptions);
 clipWatcher.on("add", (filepath) => {
-  if (path.extname(filepath) === ".mp3") {
-    client.loadedFiles[path.basename(filepath, ".mp3")] = filepath;
+  if ([".mp3", ".ogg"].includes(path.extname(filepath))) {
+    client.loadedFiles[path.basename(filepath, path.extname(filepath))] =
+      filepath;
   }
 });
 
@@ -99,9 +100,9 @@ const loadFiles = async () => {
   const files = await fs.readdir(path.join(__dirname, "clips"));
   const dict = {};
   for (const filepath of files) {
-    if (path.extname(filepath) === ".mp3") {
+    if ([".mp3", ".ogg"].includes(path.extname(filepath))) {
       const clipPath = path.join(__dirname, "clips", filepath);
-      dict[path.basename(filepath, ".mp3")] = clipPath;
+      dict[path.basename(filepath, path.extname(filepath))] = clipPath;
     }
   }
   client.loadedFiles = dict;
@@ -128,7 +129,7 @@ const registerCommands = async () => {
 
     const data = await rest.put(
       Routes.applicationGuildCommands(clientId, guildId),
-      { body: client.commands.map((cmd) => cmd.data.toJSON()) }
+      { body: commands }
     );
 
     console.log(

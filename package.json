@@ -12,14 +12,13 @@
     "fluent-ffmpeg": "^2.1.2",
     "libsodium-wrappers": "^0.7.11",
     "node-gyp": "^8.0.0",
-    "opusscript": "^0.0.8",
-    "prism-media": "^1.3.5",
+    "prism-media": "^2.0.0-alpha.0",
     "sodium": "^3.0.2",
     "zlib-sync": "^0.1.8"
   },
   "name": "soundbot",
-  "version": "1.0.0",
-  "description": "Bot to record solo and group audio from a VC as clips and play them",
+  "version": "2.0.0",
+  "description": "Soundbot to record audio",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -30,12 +29,12 @@
   },
   "keywords": [
     "discord.js",
-    "opusscript",
     "opus",
     "discord",
     "audio",
     "voice",
-    "bot"
+    "bot",
+    "record"
   ],
   "author": "pyraxo",
   "license": "MIT",

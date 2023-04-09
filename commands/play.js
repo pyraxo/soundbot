@@ -1,5 +1,6 @@
 const {
   joinVoiceChannel,
+  getVoiceConnection,
   createAudioPlayer,
   NoSubscriberBehavior,
   AudioPlayerStatus,
@@ -9,7 +10,7 @@ const {
   createAudioResource,
 } = require("@discordjs/voice");
 const { createReadStream } = require("node:fs");
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, GuildMember } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,6 +24,13 @@ module.exports = {
         .setAutocomplete(true)
     ),
   async execute(interaction) {
+    if (Object.keys(interaction.client.ongoingRecordings).length > 0) {
+      return interaction.reply({
+        content: "There's an ongoing recording. Try again later.",
+        ephemeral: true,
+      });
+    }
+
     const clipName = interaction.options.getString("clip");
     if (typeof interaction.client.loadedFiles[clipName] === "undefined") {
       return interaction.reply({
@@ -32,36 +40,43 @@ module.exports = {
     }
 
     const member = interaction.member;
-    if (!member.voice.channelId) {
+    if (!(member instanceof GuildMember && member.voice.channel)) {
       return interaction.reply({
         content: "You're not in a voice channel!",
         ephemeral: true,
       });
     }
 
-    const connection = joinVoiceChannel({
-      channelId: member.voice.channelId,
-      guildId: interaction.guildId,
-      adapterCreator: interaction.guild.voiceAdapterCreator,
-    });
+    await interaction.deferReply();
+
+    let connection = getVoiceConnection(interaction.guildId);
+    if (!connection) {
+      connection = joinVoiceChannel({
+        channelId: member.voice.channelId,
+        guildId: interaction.guildId,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
+        selfDeaf: false,
+        selfMute: false,
+      });
+    }
 
     try {
       await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-    } catch {
-      connection.destroy();
-      return interaction.reply({
+    } catch (err) {
+      console.warn(err);
+      return interaction.followUp({
         content: `Could not connect to ${member.voice.channel.name}`,
         ephemeral: true,
       });
     }
 
-    connection.on(VoiceConnectionStatus.Ready, () => {
+    connection.once(VoiceConnectionStatus.Ready, () => {
       console.log(
         `Connection created by ${member.displayName} in ${member.guild.name} > #${member.voice.channel.name}`
       );
     });
 
-    connection.on(
+    connection.once(
       VoiceConnectionStatus.Disconnected,
       async (oldState, newState) => {
         try {
@@ -90,23 +105,21 @@ module.exports = {
     const resource = createAudioResource(stream, {
       inputType: type,
       inlineVolume: false,
-      metadata: { title: filepath },
+      metadata: { title: interaction.client.loadedFiles[clipName] },
     });
 
     player.play(resource);
 
     entersState(player, AudioPlayerStatus.Playing, 5000);
 
-    player.on("error", (err) => {
+    player.once("error", (err) => {
       console.error(
-        `Error: ${error.message} with resource ${err.resource.metadata.title}`
+        `Error: ${err.message} with resource ${err.resource.metadata.title}`
       );
+      player.stop();
     });
 
-    player.on(AudioPlayerStatus.Idle, () => {
-      console.log(
-        `Connection in ${member.guild.name} > #${member.voice.channel.name} is idle`
-      );
+    player.once(AudioPlayerStatus.Idle, () => {
       player.stop();
     });
 
@@ -118,7 +131,7 @@ module.exports = {
       setTimeout(() => subscription.unsubscribe(), 5_000);
     }
 
-    return interaction.reply({
+    return interaction.followUp({
       content: `Playing ${clipName}`,
       ephemeral: true,
     });
