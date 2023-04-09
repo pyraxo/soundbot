@@ -1,24 +1,31 @@
 # Soundbot
 
-Discord.js bot that records solo and group audio from a voice channel.
+👂🗣 Discord.js bot that records solo and group audio from a voice channel.
+
+Updated for Discord.js v14 and slash commands.
 
 ## Usage
 
 ```bash
-$ npm i
-$ npm start
+npm i
+npm start
+cp env.example.json env.json
 ```
 
-Edit `env.example.json` and save as `env.json`.
+This is a personal bot for a private server and the code is for educational purposes only.
 
-`opusscript` was used instead of `@discordjs/opus` for fast prototyping. FFMPEG is required.
+## Prerequisites
 
-This is a personal bot for a private server and the code is for educational purposes only. Minimal testing was done.
+* `discord.js` v14
+* Node v16 and above
+* `ffmpeg-static` included
+* `sodium-native` is used for encryption
+* `@discordjs/opus` is used for Opus
 
 ## Commands
-* `record <clipname>` - Starts an audio recording from the user running the command
-* `grouprec <clipname>` - Starts a group recording of everyone in the voice channel, excluding bots
-* `stop` - Stops recording
-* `list` - Lists all recordings
-* `delete <clipname>` - Deletes the specified clip
-* `play <clipname>` - Plays the specified clip
+
+* `/record <clip:String> <group:Boolean>`
+  * Starts recording the user running the command. Includes **record** and **stop** button for UX.
+* `/list` - Lists all recordings
+* `/delete <clip:String>` - Deletes the specified clip
+* `/play <clip:String>` - Plays the specified clip
