@@ -116,3 +116,6 @@ dist
 .pnp.*
 
 env.json
+# Claude Code and Beads local state
+.claude/
+.beads/
