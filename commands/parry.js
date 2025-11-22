@@ -10,19 +10,12 @@ const {
   createAudioResource,
 } = require("@discordjs/voice");
 const { createReadStream } = require("node:fs");
-const { SlashCommandBuilder, GuildMember } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("play")
-    .setDescription("Plays a voice clip")
-    .addStringOption((option) =>
-      option
-        .setName("clip")
-        .setDescription("The clip to play")
-        .setRequired(true)
-        .setAutocomplete(true)
-    ),
+    .setName("parry")
+    .setDescription("Stops all sounds and plays the parry sound"),
   async execute(interaction) {
     if (Object.keys(interaction.client.ongoingRecordings).length > 0) {
       return interaction.reply({
@@ -31,10 +24,10 @@ module.exports = {
       });
     }
 
-    const clipName = interaction.options.getString("clip");
+    const clipName = "parry";
     if (typeof interaction.client.loadedFiles[clipName] === "undefined") {
       return interaction.reply({
-        content: `The clip ${clipName} doesn't exist.`,
+        content: `The parry clip doesn't exist! Upload it with \`/upload name:parry\``,
         ephemeral: true,
       });
     }
@@ -46,7 +39,7 @@ module.exports = {
 
     // If bot is not in a voice channel, check if user is in one
     if (!connection) {
-      if (!(member instanceof GuildMember && member.voice.channel)) {
+      if (!(member.voice?.channel)) {
         return interaction.followUp({
           content: "You're not in a voice channel and the bot isn't connected to one!",
           ephemeral: true,
@@ -73,28 +66,12 @@ module.exports = {
       });
     }
 
-    connection.once(VoiceConnectionStatus.Ready, () => {
-      const channelName = member.voice?.channel?.name || "voice channel";
-      console.log(
-        `Connection used by ${member.displayName} in ${member.guild.name} > #${channelName}`
-      );
-    });
-
-    connection.once(
-      VoiceConnectionStatus.Disconnected,
-      async (oldState, newState) => {
-        try {
-          await Promise.race([
-            entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
-          ]);
-          // Seems to be reconnecting to a new channel - ignore disconnect
-        } catch (error) {
-          // Seems to be a real disconnect which SHOULDN'T be recovered from
-          connection.destroy();
-        }
-      }
-    );
+    // Stop any currently playing audio
+    const currentSubscription = connection.state.subscription;
+    if (currentSubscription) {
+      currentSubscription.player.stop();
+      currentSubscription.unsubscribe();
+    }
 
     const player = createAudioPlayer({
       behaviors: {
@@ -137,18 +114,8 @@ module.exports = {
     });
 
     return interaction.followUp({
-      content: `Playing ${clipName}`,
+      content: `🛡️ PARRY!`,
       ephemeral: true,
     });
-  },
-  async autocomplete(interaction) {
-    const focusedValue = interaction.options.getFocused();
-    const focusedLower = focusedValue.toLowerCase();
-    const choices = Object.keys(interaction.client.loadedFiles).filter(
-      (choice) => choice.toLowerCase().startsWith(focusedLower)
-    );
-    await interaction.respond(
-      choices.map((choice) => ({ name: choice, value: choice })).slice(0, 25)
-    );
   },
 };

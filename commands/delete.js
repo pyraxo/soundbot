@@ -28,8 +28,9 @@ module.exports = {
   },
   async autocomplete(interaction) {
     const focusedValue = interaction.options.getFocused();
+    const focusedLower = focusedValue.toLowerCase();
     const choices = Object.keys(interaction.client.loadedFiles).filter(
-      (choice) => choice.startsWith(focusedValue)
+      (choice) => choice.toLowerCase().startsWith(focusedLower)
     );
     await interaction.respond(
       choices.map((choice) => ({ name: choice, value: choice })).slice(0, 25)

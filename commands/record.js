@@ -125,6 +125,12 @@ module.exports = {
         .setName("group")
         .setDescription("Whether or not to record everyone in the channel")
         .setRequired(false)
+    )
+    .addUserOption((option) =>
+      option
+        .setName("user")
+        .setDescription("The user to record (defaults to yourself)")
+        .setRequired(false)
     ),
   async execute(interaction) {
     if (interaction.client.ongoingRecordings[interaction.member.id]) {
@@ -144,6 +150,30 @@ module.exports = {
     }
 
     const member = interaction.member;
+    const isGroup = interaction.options.getBoolean("group");
+    const targetUser = interaction.options.getUser("user");
+
+    // Can't specify both group mode and a specific user
+    if (isGroup && targetUser) {
+      return interaction.reply({
+        content: "You can't use both group mode and specify a user! Choose one or the other.",
+        ephemeral: true,
+      });
+    }
+
+    // Get the target member (either specified user or command invoker)
+    let targetMember = member;
+    if (targetUser) {
+      targetMember = await interaction.guild.members.fetch(targetUser.id);
+      if (!targetMember) {
+        return interaction.reply({
+          content: "Could not find that user in the server!",
+          ephemeral: true,
+        });
+      }
+    }
+
+    // Check if command invoker is in a voice channel (needed to join)
     if (!(member instanceof GuildMember && member.voice.channel)) {
       return interaction.reply({
         content: "You're not in a voice channel!",
@@ -151,7 +181,21 @@ module.exports = {
       });
     }
 
-    const isGroup = interaction.options.getBoolean("group");
+    // If recording someone else, check if they're in the same voice channel
+    if (targetUser && targetMember.id !== member.id) {
+      if (!targetMember.voice.channel) {
+        return interaction.reply({
+          content: `${targetUser.username} is not in a voice channel!`,
+          ephemeral: true,
+        });
+      }
+      if (targetMember.voice.channelId !== member.voice.channelId) {
+        return interaction.reply({
+          content: `${targetUser.username} is not in your voice channel!`,
+          ephemeral: true,
+        });
+      }
+    }
 
     await interaction.deferReply();
 
@@ -232,12 +276,16 @@ module.exports = {
             ? member.voice.channel.members
                 .filter((m) => m.user && !m.user.bot)
                 .map((m) => m.id)
-            : [member.id]
+            : [targetMember.id]
         );
         interaction.client.ongoingRecordings[member.id].paths = paths;
+        const recordingMsg = targetUser && targetMember.id !== member.id
+          ? `Recording ${targetUser.username} has started! Press the **Stop** button to end it!`
+          : isGroup
+          ? "Recording everyone has started! Press the **Stop** button to end it!"
+          : "Recording has started! Press the **Stop** button to end it!";
         await i.update({
-          content:
-            "Recording has started! Press the **Stop** button to end it!",
+          content: recordingMsg,
           components: [updatedRow],
           ephemeral: true,
         });
@@ -262,8 +310,11 @@ module.exports = {
         // Save file with clipName
         collector.stop("Recording ended");
         delete interaction.client.ongoingRecordings[member.id];
+        const completionMsg = targetUser && targetMember.id !== member.id
+          ? `👍 Recording of ${targetUser.username} completed! Your new clip is \`${clipName}\``
+          : `👍 Recording completed! Your new clip is \`${clipName}\``;
         await i.update({
-          content: `👍 Recording completed! Your new clip is \`${clipName}\``,
+          content: completionMsg,
           components: [],
           ephemeral: true,
         });
