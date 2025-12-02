@@ -10,7 +10,7 @@ const {
   createAudioResource,
 } = require("@discordjs/voice");
 const { createReadStream } = require("node:fs");
-const { SlashCommandBuilder, GuildMember } = require("discord.js");
+const { SlashCommandBuilder, GuildMember, MessageFlags } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,7 +27,7 @@ module.exports = {
     if (Object.keys(interaction.client.ongoingRecordings).length > 0) {
       return interaction.reply({
         content: "There's an ongoing recording. Try again later.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -35,7 +35,7 @@ module.exports = {
     if (typeof interaction.client.loadedFiles[clipName] === "undefined") {
       return interaction.reply({
         content: `The clip ${clipName} doesn't exist.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -49,7 +49,7 @@ module.exports = {
       if (!(member instanceof GuildMember && member.voice.channel)) {
         return interaction.followUp({
           content: "You're not in a voice channel and the bot isn't connected to one!",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -69,7 +69,7 @@ module.exports = {
       console.warn(err);
       return interaction.followUp({
         content: `Could not connect to voice channel`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -79,22 +79,6 @@ module.exports = {
         `Connection used by ${member.displayName} in ${member.guild.name} > #${channelName}`
       );
     });
-
-    connection.once(
-      VoiceConnectionStatus.Disconnected,
-      async (oldState, newState) => {
-        try {
-          await Promise.race([
-            entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
-          ]);
-          // Seems to be reconnecting to a new channel - ignore disconnect
-        } catch (error) {
-          // Seems to be a real disconnect which SHOULDN'T be recovered from
-          connection.destroy();
-        }
-      }
-    );
 
     const player = createAudioPlayer({
       behaviors: {
@@ -138,7 +122,7 @@ module.exports = {
 
     return interaction.followUp({
       content: `Playing ${clipName}`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
   async autocomplete(interaction) {

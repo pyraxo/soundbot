@@ -3,9 +3,11 @@ const {
   Collection,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   REST,
   Routes,
 } = require("discord.js");
+const { getVoiceConnection } = require("@discordjs/voice");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { once } = require("node:events");
@@ -60,6 +62,30 @@ client.once(Events.ClientReady, async () => {
   console.log("Client is ready!");
 });
 
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+  // Only care when someone leaves a channel (not joins or moves within)
+  if (!oldState.channel) return;
+
+  // Check if the bot has a voice connection in this guild
+  const connection = getVoiceConnection(oldState.guild.id);
+  if (!connection) return;
+
+  // Check if the bot is in the channel that was left
+  const botChannelId = connection.joinConfig.channelId;
+  if (oldState.channelId !== botChannelId) return;
+
+  // Count non-bot members remaining in the channel
+  const channel = oldState.channel;
+  const humanMembers = channel.members.filter((member) => !member.user.bot);
+
+  if (humanMembers.size === 0) {
+    console.log(
+      `No humans left in voice channel "${channel.name}", disconnecting.`
+    );
+    connection.destroy();
+  }
+});
+
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isChatInputCommand()) {
     const command = interaction.client.commands.get(interaction.commandName);
@@ -77,16 +103,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
       console.error(`Error running command ${interaction.commandName}`);
       console.error(err);
 
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({
-          content: "Error executing command!",
-          ephemeral: true,
-        });
-      } else {
-        await interaction.reply({
-          content: "Error executing command!",
-          ephemeral: true,
-        });
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: "Error executing command!",
+            flags: MessageFlags.Ephemeral,
+          });
+        } else {
+          await interaction.reply({
+            content: "Error executing command!",
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+      } catch (replyErr) {
+        console.error("Failed to send error response:", replyErr.message);
       }
     }
   } else if (interaction.isAutocomplete()) {

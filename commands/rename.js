@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { rename } = require("node:fs/promises");
 const path = require("node:path");
 
@@ -27,7 +27,7 @@ module.exports = {
     if (!interaction.client.loadedFiles[oldName]) {
       return interaction.reply({
         content: `The clip \`${oldName}\` doesn't exist.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -35,7 +35,7 @@ module.exports = {
     if (interaction.client.loadedFiles[newName]) {
       return interaction.reply({
         content: `A clip named \`${newName}\` already exists! Choose a different name.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -51,13 +51,13 @@ module.exports = {
 
       return interaction.followUp({
         content: `✅ Successfully renamed \`${oldName}\` to \`${newName}\``,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (err) {
       console.error("Error renaming clip:", err);
       return interaction.followUp({
         content: `❌ Failed to rename clip: ${err.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

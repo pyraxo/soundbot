@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const https = require("node:https");
@@ -59,7 +59,7 @@ module.exports = {
     if (!attachment && !url) {
       return interaction.reply({
         content: "Please provide either a file upload or a URL!",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -67,7 +67,7 @@ module.exports = {
     if (interaction.client.loadedFiles[clipName]) {
       return interaction.reply({
         content: `A clip named \`${clipName}\` already exists! Use /delete to remove it first or choose a different name.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -85,7 +85,7 @@ module.exports = {
         if (ext !== ".mp3" && ext !== ".ogg") {
           return interaction.followUp({
             content: "Only MP3 and OGG files are supported!",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -104,7 +104,7 @@ module.exports = {
         if (ext !== ".mp3" && ext !== ".ogg") {
           return interaction.followUp({
             content: "URL must point to an MP3 or OGG file!",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
 
@@ -118,13 +118,13 @@ module.exports = {
 
       return interaction.followUp({
         content: `✅ Successfully uploaded clip \`${clipName}\`! Use \`/play clip:${clipName}\` to play it.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (err) {
       console.error("Error uploading clip:", err);
       return interaction.followUp({
         content: `❌ Failed to upload clip: ${err.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

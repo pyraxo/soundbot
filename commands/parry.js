@@ -10,7 +10,7 @@ const {
   createAudioResource,
 } = require("@discordjs/voice");
 const { createReadStream } = require("node:fs");
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,7 +20,7 @@ module.exports = {
     if (Object.keys(interaction.client.ongoingRecordings).length > 0) {
       return interaction.reply({
         content: "There's an ongoing recording. Try again later.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -28,7 +28,7 @@ module.exports = {
     if (typeof interaction.client.loadedFiles[clipName] === "undefined") {
       return interaction.reply({
         content: `The parry clip doesn't exist! Upload it with \`/upload name:parry\``,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -42,7 +42,7 @@ module.exports = {
       if (!(member.voice?.channel)) {
         return interaction.followUp({
           content: "You're not in a voice channel and the bot isn't connected to one!",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -62,7 +62,7 @@ module.exports = {
       console.warn(err);
       return interaction.followUp({
         content: `Could not connect to voice channel`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -115,7 +115,7 @@ module.exports = {
 
     return interaction.followUp({
       content: `🛡️ PARRY!`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

@@ -38,6 +38,6 @@
   },
   "homepage": "https://github.com/pyraxo/soundbot#readme",
   "volta": {
-    "node": "22.21.1"
+    "node": "25.2.1"
   }
 }

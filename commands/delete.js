@@ -1,5 +1,5 @@
 const { unlink } = require("node:fs/promises");
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,7 +17,7 @@ module.exports = {
     if (!interaction.client.loadedFiles[clipName]) {
       return interaction.reply({
         content: `The clip ${clipName} doesn't exist.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 

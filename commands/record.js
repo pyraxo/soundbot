@@ -14,6 +14,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   GuildMember,
+  MessageFlags,
 } = require("discord.js");
 const { opus } = require("prism-media");
 const ffmpeg = require("fluent-ffmpeg");
@@ -136,7 +137,7 @@ module.exports = {
     if (interaction.client.ongoingRecordings[interaction.member.id]) {
       return interaction.reply({
         content: "You have an ongoing recording. End that one first!",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -145,7 +146,7 @@ module.exports = {
     if (interaction.client.loadedFiles[clipName]) {
       return interaction.reply({
         content: "There is already a recording with that name!",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -157,7 +158,7 @@ module.exports = {
     if (isGroup && targetUser) {
       return interaction.reply({
         content: "You can't use both group mode and specify a user! Choose one or the other.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -168,7 +169,7 @@ module.exports = {
       if (!targetMember) {
         return interaction.reply({
           content: "Could not find that user in the server!",
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
@@ -177,7 +178,7 @@ module.exports = {
     if (!(member instanceof GuildMember && member.voice.channel)) {
       return interaction.reply({
         content: "You're not in a voice channel!",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -186,13 +187,13 @@ module.exports = {
       if (!targetMember.voice.channel) {
         return interaction.reply({
           content: `${targetUser.username} is not in a voice channel!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
       if (targetMember.voice.channelId !== member.voice.channelId) {
         return interaction.reply({
           content: `${targetUser.username} is not in your voice channel!`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     }
@@ -216,7 +217,7 @@ module.exports = {
       console.warn(err);
       return interaction.followUp({
         content: `Could not connect to ${member.voice.channel.name}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
     const receiver = connection.receiver;
@@ -287,7 +288,7 @@ module.exports = {
         await i.update({
           content: recordingMsg,
           components: [updatedRow],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       } else if (i.customId === `stop:${member.id}`) {
         for (const id in interaction.client.ongoingRecordings[member.id].rcv) {
@@ -304,7 +305,7 @@ module.exports = {
           return i.update({
             content: "😢 Recording failed. Try again later?",
             components: [],
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
         // Save file with clipName
@@ -316,7 +317,7 @@ module.exports = {
         await i.update({
           content: completionMsg,
           components: [],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
     });
@@ -325,7 +326,7 @@ module.exports = {
       content:
         "New recording initialised! Press the **Record** button to begin recording, and **Stop** to end it!",
       components: [row],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
